@@ -1,0 +1,325 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nailog Railway Runner</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #101827;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+h1 {
+  color: #ffd43b;
+  margin: 12px;
+}
+
+#game {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 650px;
+  margin: auto;
+  overflow: hidden;
+  background: linear-gradient(#55b9dc, #b6e4f2 40%, #397b39 40%, #183c24);
+  border: 4px solid white;
+  border-radius: 12px;
+}
+
+#scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 33.33%;
+  border-left: 5px solid #555;
+  border-right: 5px solid #555;
+  background: repeating-linear-gradient(
+    to bottom,
+    #555 0px,
+    #555 12px,
+    #777 12px,
+    #777 48px
+  );
+}
+
+#track0 { left: 0; }
+#track1 { left: 33.33%; }
+#track2 { left: 66.66%; }
+
+#player {
+  position: absolute;
+  bottom: 95px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 65px;
+  z-index: 5;
+  transition: left 0.12s;
+}
+
+.obstacle {
+  position: absolute;
+  font-size: 55px;
+  z-index: 4;
+  transform: translateX(-50%);
+}
+
+.coin {
+  position: absolute;
+  font-size: 35px;
+  transform: translateX(-50%);
+}
+
+#score {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 20px;
+  font-weight: bold;
+  z-index: 8;
+}
+
+#menu {
+  position: absolute;
+  inset: 0;
+  background: #000b;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+button {
+  border: none;
+  padding: 13px 22px;
+  border-radius: 12px;
+  background: #ffd43b;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 5px;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  padding: 12px;
+}
+
+.controls button {
+  width: 75px;
+  font-size: 25px;
+}
+
+#instructions {
+  font-size: 13px;
+  color: #ddd;
+  padding: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚆 NAILOG RUNNER</h1>
+
+<div id="game">
+
+  <div id="scene">
+    <div class="track" id="track0"></div>
+    <div class="track" id="track1"></div>
+    <div class="track" id="track2"></div>
+  </div>
+
+  <div id="score">Skor: 0</div>
+
+  <div id="player">🧑</div>
+
+  <div id="menu">
+    <h1>NAILOG RUNNER</h1>
+    <p>Petualangan di Rel Kereta!</p>
+    <p>Hindari kereta dan kumpulkan koin.</p>
+    <button onclick="startGame()">MULAI BERMAIN</button>
+  </div>
+
+</div>
+
+<div class="controls">
+  <button onclick="move(-1)">⬅️</button>
+  <button onclick="jump()">⬆️</button>
+  <button onclick="move(1)">➡️</button>
+</div>
+
+<p id="instructions">
+  Gunakan tombol panah atau tombol di layar untuk bermain.
+</p>
+
+<script>
+const game = document.getElementById("game");
+const scene = document.getElementById("scene");
+const player = document.getElementById("player");
+const scoreText = document.getElementById("score");
+const menu = document.getElementById("menu");
+
+let lane = 1;
+let score = 0;
+let running = false;
+let jumping = false;
+let speed = 5;
+let objects = [];
+let timer;
+let gameLoop;
+
+const lanePosition = [16.67, 50, 83.33];
+
+function updatePlayer() {
+  player.style.left = lanePosition[lane] + "%";
+}
+
+function move(direction) {
+  if (!running) return;
+
+  lane = Math.max(0, Math.min(2, lane + direction));
+  updatePlayer();
+}
+
+function jump() {
+  if (!running || jumping) return;
+
+  jumping = true;
+  player.style.bottom = "200px";
+
+  setTimeout(() => {
+    player.style.bottom = "95px";
+    jumping = false;
+  }, 550);
+}
+
+function createObject() {
+  if (!running) return;
+
+  const laneNumber = Math.floor(Math.random() * 3);
+  const isCoin = Math.random() < 0.4;
+
+  const obj = document.createElement("div");
+
+  obj.className = isCoin ? "coin" : "obstacle";
+  obj.textContent = isCoin ? "🪙" : "🚆";
+
+  obj.style.left = lanePosition[laneNumber] + "%";
+  obj.style.top = "-60px";
+
+  scene.appendChild(obj);
+
+  objects.push({
+    element: obj,
+    lane: laneNumber,
+    y: -60,
+    coin: isCoin,
+    passed: false
+  });
+}
+
+function endGame() {
+  running = false;
+  clearInterval(timer);
+  clearInterval(gameLoop);
+
+  menu.style.display = "flex";
+  menu.innerHTML = `
+    <h1>GAME OVER!</h1>
+    <h2>Skor: ${score}</h2>
+    <p>Terima kasih sudah bermain!</p>
+    <button onclick="startGame()">MAIN LAGI</button>
+  `;
+}
+
+function startGame() {
+  clearInterval(timer);
+  clearInterval(gameLoop);
+
+  objects.forEach(o => o.element.remove());
+  objects = [];
+
+  lane = 1;
+  score = 0;
+  speed = 5;
+  jumping = false;
+  running = true;
+
+  player.style.bottom = "95px";
+  updatePlayer();
+
+  scoreText.textContent = "Skor: 0";
+  menu.style.display = "none";
+
+  timer = setInterval(createObject, 1050);
+
+  gameLoop = setInterval(() => {
+    if (!running) return;
+
+    objects.forEach((obj, index) => {
+      obj.y += speed;
+      obj.element.style.top = obj.y + "px";
+
+      const playerZone = 490;
+
+      if (
+        obj.y > playerZone - 35 &&
+        obj.y < playerZone + 35 &&
+        obj.lane === lane &&
+        !obj.passed
+      ) {
+        obj.passed = true;
+
+        if (obj.coin) {
+          score += 10;
+          scoreText.textContent = "Skor: " + score;
+          obj.element.remove();
+        } else if (!jumping) {
+          endGame();
+        }
+      }
+
+      if (obj.y > 680) {
+        obj.element.remove();
+        objects.splice(index, 1);
+
+        score += 1;
+        scoreText.textContent = "Skor: " + score;
+      }
+    });
+
+    speed = Math.min(10, speed + 0.001);
+  }, 30);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") move(-1);
+  if (e.key === "ArrowRight") move(1);
+  if (e.key === "ArrowUp" || e.key === " ") jump();
+});
+
+updatePlayer();
+</script>
+
+</body>
+</html>
